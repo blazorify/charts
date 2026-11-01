@@ -1,0 +1,109 @@
+@page "/animation-check"
+
+<PageTitle>Animation check</PageTitle>
+
+<h1>Animation check</h1>
+
+<p>
+	A browser test page for the animation techniques the library relies on. Press <strong>Change data</strong> and watch each
+	chart: it should move smoothly to the new shape over one second. Note any that jump straight to the end.
+</p>
+
+<p>
+	<button type="button" @onclick="this.Change">Change data</button>
+	<button type="button" @onclick="this.Replay">Replay (re-insert the charts)</button>
+</p>
+
+<div class="check-grid">
+	<figure>
+		<figcaption>1. SVG &lt;animate&gt; on first render, zero JS</figcaption>
+		<svg @key="this.replay" viewBox="0 0 100 50" preserveAspectRatio="none">
+			<path d="@this.Line(this.current)" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke">
+				<animate attributeName="d" from="@this.Line(Flat)" to="@this.Line(this.current)" dur="1s" begin="0s" fill="remove" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" />
+			</path>
+		</svg>
+	</figure>
+
+	<figure>
+		<figcaption>2. SVG &lt;animate&gt; morph on data change (generic play helper)</figcaption>
+		<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+			<path d="@this.Line(this.current)" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke">
+				<animate @key="this.version" data-bc-play attributeName="d" from="@this.Line(this.previous)" to="@this.Line(this.current)" dur="1s" begin="indefinite" fill="remove" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" />
+			</path>
+		</svg>
+	</figure>
+
+	<figure>
+		<figcaption>3. SVG &lt;animate&gt; bar heights on data change</figcaption>
+		<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+			@for (var i = 0; i < this.current.Length; i++) {
+				var x = (i * 100d / this.current.Length) + 2;
+				var from = 50 * this.previous[i];
+				var to = 50 * this.current[i];
+
+				<rect x="@F(x)" width="@F((100d / this.current.Length) - 4)" y="@F(50 - to)" height="@F(to)" fill="currentColor" opacity="0.7">
+					<animate @key="this.HeightKey" data-bc-play attributeName="height" from="@F(from)" to="@F(to)" dur="1s" begin="indefinite" fill="remove" />
+					<animate @key="this.YKey" data-bc-play attributeName="y" from="@F(50 - from)" to="@F(50 - to)" dur="1s" begin="indefinite" fill="remove" />
+				</rect>
+			}
+		</svg>
+	</figure>
+
+	<figure>
+		<figcaption>4. CSS transition on the path (fallback; expected not to animate in Safari)</figcaption>
+		<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+			<path class="css-morph" d="@this.Line(this.current)" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+		</svg>
+	</figure>
+
+	<figure>
+		<figcaption>5. CSS draw-in (stroke-dashoffset) on first render</figcaption>
+		<svg @key="this.replay" viewBox="0 0 100 50" preserveAspectRatio="none">
+			<path class="css-draw" pathLength="1" d="@this.Line(this.current)" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+		</svg>
+	</figure>
+</div>
+
+<style>
+	.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 1.5rem; }
+	.check-grid figure { margin: 0; }
+	.check-grid svg { display: block; width: 100%; height: 8rem; border: 1px solid #d0d7de; color: #0969da; }
+	.check-grid figcaption { font-size: 0.875rem; margin-bottom: 0.5rem; }
+	.css-morph { transition: d 1s cubic-bezier(0.4, 0, 0.2, 1); }
+	.css-draw { stroke-dasharray: 1; animation: draw 1s cubic-bezier(0.4, 0, 0.2, 1) both; }
+	@@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+</style>
+
+@code {
+	private static readonly Double[] Flat = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+
+	private readonly Random random = new(1);
+	private Double[] previous = Flat;
+	private Double[] current = [0.2, 0.6, 0.4, 0.9, 0.3, 0.7, 0.5, 0.8];
+	private Int32 version;
+	private Int32 replay;
+
+	private void Change() {
+		this.previous = this.current;
+		this.current = [.. this.current.Select(_ => Math.Round(0.1 + (this.random.NextDouble() * 0.85), 2))];
+		this.version++;
+	}
+
+	private String HeightKey => $"height-{this.version}";
+
+	private String YKey => $"y-{this.version}";
+
+	private void Replay() {
+		this.replay++;
+	}
+
+	private String Line(Double[] values) {
+		var step = 100d / (values.Length - 1);
+
+		return "M" + String.Join("L", values.Select((value, index) => $"{F(index * step)} {F(50 - (value * 46) - 2)}"));
+	}
+
+	private static String F(Double value) {
+		return value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+	}
+}
