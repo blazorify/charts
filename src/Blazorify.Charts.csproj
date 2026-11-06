@@ -29,6 +29,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Blazorify.Charts.Tests.Unit" />
     <InternalsVisibleTo Include="Blazorify.Charts.Tests.Components" />
+    <InternalsVisibleTo Include="Blazorify.Website" />
   </ItemGroup>
 
   <ItemGroup>
